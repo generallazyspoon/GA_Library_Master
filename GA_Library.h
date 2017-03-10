@@ -14,7 +14,7 @@
 
 namespace UI
 {
-	void clearIt(std::string operatingSystem);
+	void clearIt(bool win32);
 	void cinBufferClear();
 	void error(int x);
 	unsigned int selector(unsigned int max);
@@ -26,9 +26,8 @@ namespace UI
 
 class Menu
 {
-private:
-	std::vector<std::string> choices;
 public:
+	std::vector<std::string> choices; 
 	void clearMenu();
 	void setMenu(std::string choice);
 	void displayMenu();
@@ -44,6 +43,7 @@ namespace FileOps
 		std::string workingFilename;
 		std::string workingDirectory;
 		std::vector<std::string> fileList = {};
+		std::vector<std::string> dirList = {};
 		struct databaseStruct
 		{
 			std::string dataType = {};
@@ -62,15 +62,19 @@ namespace FileOps
 	namespace TargetManage
 	{
 		void setDir(Data &passThrough, std::string input);
-		void setFile(Data &passThrough, std::string target, std::string extension);
+		void setFileName(Data &passThrough, std::string fileName);
+		void setExtension(Data &passThrough, std::string extension);
+		bool checkForDir(Data &passThrough);
 	}
 	namespace FileManage
 	{
-		void listFiles(Data &passThrough, std::string manualExtension);
+		void listFiles(Data &passThrough);
 		void setFileList(Data &passThrough);
 		bool fileSeek(Data &passThrough);
 		void deleteFile(Data &passThrough);
-		std::string chooseFile(Data &passThrough, std::string manualExtension);
+		std::string chooseFile(Data &passThrough);
+		void setDirList(Data & passThrough);
+		void createFile(Data &passThrough);
 	}
 	namespace FileContent
 	{
@@ -83,7 +87,6 @@ namespace FileOps
 		void typeList(Data &passThrough);
 		void smartBuffer(Data &passThrough);
 		void dataBuffer(Data &passThrough, std::string dataType);
-		//	extern searchModeActivate searchQuery;
 		std::string searchSimple(Data &passThrough, std::string searchType);
 		void searchDump(Data &passThrough);
 		void globalDataSearch(Data &passThrough);
@@ -93,7 +96,36 @@ namespace FileOps
 		std::string dataTypeSelector(Data &passThrough);
 		std::string dataSelector(Data &passThrough, std::string dataTypeSelection);
 		std::string dataTarget(Data &passThrough, unsigned int dataTypePosition, unsigned int dataPosition);
+		std::string manualDataCrawl(Data &passThrough);
 	}
 	bool checkParams(Data &passThrough);
+}
+
+namespace RandomOps
+{
+	unsigned int range(unsigned int lowNumber, unsigned int highNumber);
+	unsigned int upperLimit(unsigned int highNumber);
+	class Dicebag
+	{
+	public:
+		std::vector<unsigned int> rollValues;
+		unsigned int rollTotal;
+		void rollDie(unsigned int dieType, unsigned int numberOfDice);
+		void reset();
+		void displayRoll();
+	};
+}
+
+namespace DebugTools
+{
+	extern bool verbose;
+	extern unsigned int consoleMarker;
+	void consoleDebugMarker(std::string customMarker);
+}
+
+namespace GA_Misc
+{
+	std::vector<unsigned int> parseUnsignedInts(std::string parseMe);
+	std::vector<int> parseInts(std::string parseMe);
 }
 #endif

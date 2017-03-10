@@ -1,18 +1,33 @@
-
 #include "stdafx.h"
 #include "GA_Library.h"
 
+// Debugging Tools:
+
+// "verbose" - Set this to "true" if you want to see Debugging Tool output in the console
+extern bool DebugTools::verbose = true;
+// "consoleMarker" - Increments every time the program passes a consoleDebugMarker() method
+extern unsigned int DebugTools::consoleMarker = 0;
+// "consoleDebugMarker" - Place these in the code (with an optional custom message) to mark a position in the runtime
+void DebugTools::consoleDebugMarker(std::string customMarker)
+{
+	if (DebugTools::verbose)
+	{
+		if (customMarker == "")
+			std::cout << "\n" << "Debug Point #: " << consoleMarker << "\n";
+		else if (customMarker != "")
+			std::cout << "\n" << "Debug Point #: " << consoleMarker << " - " << customMarker << "\n";
+		DebugTools::consoleMarker++;
+		UI::pressEnterToContinue();
+	}
+}
 
 // UI Elements:
-// ------------
 
 // "clearIt" - Clears the console string by flooding it with newlines.
-void UI::clearIt(std::string operatingSystem)
+void UI::clearIt(bool win32)
 {
-	if (operatingSystem == "win32")
-	{
+	if (win32)
 		system("cls");
-	}
 	else { std::cout << std::string(100, '\n'); }
 }
 // "cinBufferClear" - Clears the cin buffer for new usage.
@@ -48,11 +63,15 @@ void UI::error(int x)
 	case 6:
 		std::cout << "\n<< No database information >>\n\n";
 		break;
+	case 7:
+		std::cout << "\n<< No information provided for the called method.";
+		break;
 	default:
 		std::cout << "\n<< Please specify an error code. >>\n\n";
 	}
+	UI::pressEnterToContinue();
 }
-// "selector" - Prompts the user for an integer.  Uses "error".
+// "selector" - Prompts the user for an integer.
 unsigned int UI::selector(unsigned int max)
 {
 	if (max == 0)
@@ -75,7 +94,7 @@ unsigned int UI::selector(unsigned int max)
 	UI::cinBufferClear();
 	return x;
 }
-// "yesNo" - Prompts the user for a yes or no.  Uses "error".
+// "yesNo" - Prompts the user for a yes or no.
 bool UI::yesNo()
 {
 	char c;
@@ -126,7 +145,7 @@ std::string UI::fieldModify(std::string enteredField)
 void UI::pressEnterToContinue()
 {
 	int c;
-	std::cout << "\n\n>> Press enter to continue...";
+	std::cout << "\n\n>> Press enter to continue...\n";
 	do
 	{
 		c = _getch();
@@ -134,7 +153,6 @@ void UI::pressEnterToContinue()
 }
 
 // Menu Elements:
-// --------------
 
 // "clearMenu" - Clears all menu choices.  Encapsulated in class "Menu".
 void Menu::clearMenu()
@@ -154,11 +172,7 @@ void Menu::displayMenu()
 	std::cout << "\n";
 }
 
-// // File Operations:
-// // ----------------
-
-// Target Management:
-// ------------------
+// File Operations - Target Management:
 
 // "setDir" - Sets the working directory for file operations
 void FileOps::TargetManage::setDir(Data &passThrough, std::string input)
@@ -169,38 +183,55 @@ void FileOps::TargetManage::setDir(Data &passThrough, std::string input)
 		passThrough.slash = "/";
 		passThrough.workingDirectory = passThrough.workingDirectory + passThrough.slash;
 	}
-	if (passThrough.workingDirectory.size() == 0)
+	else if (passThrough.workingDirectory.size() == 0)
 		passThrough.slash = "";
 }
-// "setFile" - Sets the working filename for file operations
-void FileOps::TargetManage::setFile(Data &passThrough, std::string target, std::string extension)
+// "setFileName" - Sets the working filename for file operations
+void FileOps::TargetManage::setFileName(Data &passThrough, std::string fileName)
 {
-	passThrough.workingFilename = target + "." + extension;
-	passThrough.targetFile = target;
+	passThrough.targetFile = fileName;
+	passThrough.workingFilename = fileName + "." + passThrough.targetExtension;
+}
+// "setExtension" - Sets the working file extension for file operations
+void FileOps::TargetManage::setExtension(Data &passThrough, std::string extension)
+{
 	passThrough.targetExtension = extension;
+	passThrough.workingFilename = passThrough.targetFile + "." + extension;
+}
+// "checkForDir" - Checks to see if the directory specified in the object exists.  Returns true if it does.
+bool FileOps::TargetManage::checkForDir(Data &passThrough)
+{
+	if (!boost::filesystem::is_directory(passThrough.workingDirectory))
+	{
+		std::cout << "<< Warining!  Directory does not exist for specified object! >>";
+		UI::pressEnterToContinue();
+		return false;
+	}
+	else return true;
 }
 
-// File Management:
-// ----------------
+// File Operations - File Management:
 
 // "listFiles" - Lists the files with the given file [extension] in the working directory.
-void FileOps::FileManage::listFiles(Data &passThrough, std::string manualExtension)
+void FileOps::FileManage::listFiles(Data &passThrough)
 {
-	std::string selectedExtension;
-	if (manualExtension == "")
-		selectedExtension = passThrough.targetExtension;
-	else if (manualExtension != "")
-		selectedExtension = manualExtension;
+	if (!FileOps::TargetManage::checkForDir(passThrough))
+		return;
+	if (passThrough.targetExtension == "")
+	{
+		UI::error(4);
+		return;
+	}
 	passThrough.fileList = {};
 	namespace fs = boost::filesystem;
 	fs::path directory(passThrough.workingDirectory);
 	fs::directory_iterator iter(directory), end;
 	for (; iter != end; ++iter)
-		if (iter->path().extension() == "." + selectedExtension)
+		if (iter->path().extension() == "." + passThrough.targetExtension)
 		{
 			// assigns filename w/o double-quotes to string fileFile and removes occurrences of "[extension]"
 			std::string fileFile = iter->path().filename().string();
-			boost::erase_all(fileFile, "." + selectedExtension);
+			boost::erase_all(fileFile, "." + passThrough.targetExtension);
 
 			// outputs string fileFile as plain text
 			passThrough.fileList.push_back(fileFile);
@@ -208,22 +239,22 @@ void FileOps::FileManage::listFiles(Data &passThrough, std::string manualExtensi
 	size_t listSize = passThrough.fileList.size();
 	if (passThrough.fileList.size() == 0)
 	{
-		std::cout << "Requested file type: " << selectedExtension;
+		std::cout << "Requested file type: " << passThrough.targetExtension;
 		UI::error(3);
 	}
 	else if (passThrough.fileList.size() > 0)
 	{
-		std::cout << "Requested file type: " << selectedExtension << "\n\n";
+		std::cout << "Requested file type: " << passThrough.targetExtension << "\n\n";
 		for (size_t x = 1; x <= listSize; x++)
-		{
 			std::cout << x << ".  " << passThrough.fileList[x - 1] << "\n";
-		}
 		std::cout << "\n";
 	}
 }
 // "setFileList" - Populates the internal file listing.
 void FileOps::FileManage::setFileList(Data &passThrough)
 {
+	if (!FileOps::TargetManage::checkForDir(passThrough))
+		return; 
 	passThrough.fileList = {};
 	namespace fs = boost::filesystem;
 	fs::path directory(passThrough.workingDirectory);
@@ -239,6 +270,8 @@ void FileOps::FileManage::setFileList(Data &passThrough)
 // "duplicateFileSeek" - Searches the working directory for [target] filename with given file [extension].  Returns true if a match is found.
 bool FileOps::FileManage::fileSeek(Data &passThrough)
 {
+	if (!FileOps::TargetManage::checkForDir(passThrough))
+		return false;
 	if (!checkParams(passThrough))
 	{
 		UI::error(4);
@@ -256,6 +289,8 @@ bool FileOps::FileManage::fileSeek(Data &passThrough)
 // "deleteFile" - Permanently deletes the [target] filename with file [extension].  Uses "yesNo" to confirm this deletion.
 void FileOps::FileManage::deleteFile(Data &passThrough)
 {
+	if (!FileOps::TargetManage::checkForDir(passThrough))
+		return;
 	bool fileExists = fileSeek(passThrough);
 	std::string selectedForDeletion;
 	std::cout << "\n\nFile selected for deletion: " << passThrough.targetFile << "." << passThrough.targetExtension << "\n\n";
@@ -274,19 +309,49 @@ void FileOps::FileManage::deleteFile(Data &passThrough)
 	}
 }
 // "chooseFile" - Prompts the user for a file selection
-std::string FileOps::FileManage::chooseFile(Data &passThrough, std::string manualExtension)
+std::string FileOps::FileManage::chooseFile(Data &passThrough)
 {
+	if (!FileOps::TargetManage::checkForDir(passThrough))
+		return "";
 	setFileList(passThrough);
-	listFiles(passThrough, manualExtension);
+	listFiles(passThrough);
 	if (passThrough.fileList.size() == 0)
 		return "";
 	unsigned int x = UI::selector(passThrough.fileList.size());
+	if (x == 0)
+		return "";
 	std::string chosenFile = passThrough.fileList[x - 1];
 	return chosenFile;
 }
+// "setDirList" - Populates the Data struct with the subdirectories found in the workingDirectory
+void FileOps::FileManage::setDirList(Data &passThrough)
+{
+	if (!FileOps::TargetManage::checkForDir(passThrough))
+		return; 
+	namespace fs = boost::filesystem;
+	fs::path directory(passThrough.workingDirectory);
+	fs::directory_iterator iter(directory), end;
+	for (; iter != end; ++iter)
+		if (is_directory(iter->path()))
+		{
+			std::string dirOut = iter->path().filename().string();
+			passThrough.dirList.push_back(dirOut);
+		}
+}
+// "createFile" - creates a file based on the object's parameters
+void FileOps::FileManage::createFile(Data &passThrough)
+{
+	if (passThrough.targetFile == "" || passThrough.targetExtension == "" || passThrough.workingDirectory == "")
+	{
+		UI::error(4);
+		UI::pressEnterToContinue();
+		return;
+	}
+	std::ofstream makeFile(passThrough.workingDirectory + passThrough.workingFilename);
+	makeFile.close();
+}
 
-// File Content:
-// -------------
+// File Operations - File Content:
 
 // "displayFileContents" - displays the contents of a target file, line by line
 void FileOps::FileContent::displayFileContents(Data &passThrough)
@@ -493,9 +558,23 @@ void FileOps::FileContent::listManagement(Data &passThrough)
 	} while (selection != 0);
 }
 
-// Database Management:
-// --------------------
+// File Operations - Database Management:
+
+// "searchQuery" - Table of database search elements.
 FileOps::Data::searchTable searchQuery;
+// "checkParams" - Checks to see if file information has been defined.
+bool FileOps::checkParams(Data &passThrough)
+{
+	// Unnecessary unless checking files without extensions
+	if (passThrough.workingFilename.size() == 0)
+		return false;
+	// Necessary
+	if (passThrough.targetFile.size() == 0)
+		return false;
+	if (passThrough.targetExtension.size() == 0)
+		return false;
+	return true;
+}
 // "typeList" - Displays the internal database of specified [dataType].
 void FileOps::DBManage::typeList(Data &passThrough)
 {
@@ -791,18 +870,175 @@ std::string FileOps::DBManage::dataTarget(Data &passThrough, unsigned int dataTy
 		return "Error: data position out of range.";
 	return passThrough.infoDatabase[dataTypePosition].data[dataPosition];
 }
-
-// Review
-
-// "checkParams" - Checks the class data to see if information has been defined.  Used for exiting a function that would otherwise try to do something with 
-//					an unspecified file.  Is this needed?
-bool FileOps::checkParams(Data &passThrough)
+// "manaualDataCrawl" - uses a menu-style system to return a specific data value.
+std::string FileOps::DBManage::manualDataCrawl(Data &passThrough)
 {
-	if (passThrough.workingFilename.size() == 0)
-		return false;
-	if (passThrough.targetFile.size() == 0)
-		return false;
-	if (passThrough.targetExtension.size() == 0)
-		return false;
-	return true;
+	unsigned int dataTypeSelection;
+	unsigned int dataSelection;
+	do
+	{
+		typeList(passThrough);
+		dataTypeSelection = UI::selector(passThrough.infoDatabase.size());
+		if (dataTypeSelection == 0)
+			break;
+		do
+		{
+			dataDump(passThrough, passThrough.infoDatabase[dataTypeSelection - 1].dataType);
+			dataSelection = UI::selector(passThrough.infoDatabase[dataTypeSelection - 1].data.size());
+			if (dataSelection != 0 && dataSelection < passThrough.infoDatabase[dataTypeSelection - 1].data.size())
+				return passThrough.infoDatabase[dataTypeSelection - 1].data[dataSelection - 1];
+		} while (dataSelection != 0);
+	} while (dataTypeSelection != 0);
+	return "";
+}
+
+// Random Number Operations:
+
+// "range" - provides a random number given a provided range, low and high
+unsigned int RandomOps::range(unsigned int lowNumber, unsigned int highNumber)
+{
+	std::mt19937 rng;
+	rng.seed(std::random_device()());
+	std::uniform_int_distribution<std::mt19937::result_type> randomPicker(lowNumber, highNumber);
+	return randomPicker(rng);
+}
+// "upperLimit" - provides a random number given a provided upper limit (or maximum)
+unsigned int RandomOps::upperLimit(unsigned int highNumber)
+{
+	unsigned int lowNumber = 1;
+	std::mt19937 rng;
+	rng.seed(std::random_device()());
+	std::uniform_int_distribution<std::mt19937::result_type> randomPicker(lowNumber, highNumber);
+	return randomPicker(rng);
+}
+// "Dicebag::rollDie" - run RNG for [numbeOfDice] x [dieType] and appropriate values to the Dicebag object
+void RandomOps::Dicebag::rollDie(unsigned int dieType, unsigned int numberOfDice)
+{
+	for (unsigned int rollQueue = 0; rollQueue < numberOfDice; rollQueue++)
+	{
+		std::mt19937 rng;
+		rng.seed(std::random_device()());
+		std::uniform_int_distribution<std::mt19937::result_type> randomPicker(1, dieType);
+		rollValues.push_back(randomPicker(rng));
+	}
+	for (unsigned int valueAdd = 0; valueAdd < rollValues.size(); valueAdd++)
+		rollTotal = rollValues[valueAdd] + rollTotal;
+}
+// "Dicebag::reset" - resets the Dicebag object roll values and roll total
+void RandomOps::Dicebag::reset()
+{
+	rollValues = {};
+	rollTotal = 0;
+}
+// "Dicebag::displayRoll" - displays the contents of the Dicebag's roll
+void RandomOps::Dicebag::displayRoll()
+{
+	if (rollValues.size() == 0)
+	{
+		UI::error(7);
+		return;
+	}
+	std::cout << rollTotal << "\n";
+	if (rollValues.size() == 1)
+	{
+		std::cout << rollValues[0];
+		return;
+	}
+	else if (rollValues.size() > 1)
+	{
+		for (unsigned int x = 0; x < rollValues.size() - 1; x++)
+			std::cout << rollValues[x] << ", ";
+		std::cout << rollValues[rollValues.size() - 1];
+		std::cout << "\n";
+	}
+}
+
+// GA_Misc:
+
+// "parseUnsignedInts" - parse all the integers (unsigned Int range) from a string and pass the results back as a vector
+std::vector<unsigned int> GA_Misc::parseUnsignedInts(std::string parseMe)
+{
+	// Allocate the memory for the containers
+	std::string interimString;
+	unsigned int interimInt;
+	std::vector<unsigned int> pushThisValue = {};
+	
+	// Failsafe Exit
+	// if (parseMe == "") { UI::error(7); return pushThisValue; }
+	
+	// process the string	
+	for (unsigned int x = 0; x < parseMe.size(); x++)
+	{
+		// Parse any digits
+		if (isdigit(parseMe[x]))
+			interimString += parseMe[x];
+		// push any present interimInts when reaching a non-digit
+		if (!isdigit(parseMe[x]))
+			if (interimString.size() > 0)
+			{
+				interimInt = stoi(interimString);
+				pushThisValue.push_back(interimInt);
+				interimString = "";
+			}
+		// Push any leftover interimInts when reaching the end of parseMe
+		if (x == parseMe.size() - 1)
+			if (interimString.size() > 0)
+			{
+				interimInt = stoi(interimString);
+				pushThisValue.push_back(interimInt);
+				interimString = "";
+			}
+	}
+	return pushThisValue;
+	// burp
+}
+// "parseInts" - parse all the integers (int range, negative OK) from a string and pass the results back as a vector
+std::vector<int> GA_Misc::parseInts(std::string parseMe)
+{
+	// Allocate the memory for the containers
+	std::string interimString;
+	int interimInt;
+	std::vector<int> pushThisValue = {};
+	// Create a switch for use in encountering negative numbers
+	bool negative = false;
+
+	// Failsafe Exit
+	// if (parseMe == "") { UI::error(7); return pushThisValue; }
+
+	// process the string	
+	for (unsigned int x = 0; x < parseMe.size(); x++)
+	{
+		// check for a negative marker
+		if (x > 0 && isdigit(parseMe[x]) && parseMe.substr(x - 1, 1) == "-")
+			negative = true;
+		// Parse any digits
+		if (isdigit(parseMe[x]))
+			interimString += parseMe[x];
+		// push any present interimInts when reaching a non-digit
+		if (!isdigit(parseMe[x]))
+			if (interimString.size() > 0)
+			{
+				interimInt = stoi(interimString);
+				if (!negative)
+					pushThisValue.push_back(interimInt);
+				else if (negative)
+					pushThisValue.push_back(-(interimInt));
+				interimString = "";
+				negative = false;
+			}
+		// Push any leftover interimInts when reaching the end of parseMe
+		if (x == parseMe.size() - 1)
+			if (interimString.size() > 0)
+			{
+				interimInt = stoi(interimString);
+				if (!negative)
+					pushThisValue.push_back(interimInt);
+				else if (negative)
+					pushThisValue.push_back(-(interimInt));
+				interimString = "";
+				negative = false;
+			}
+	}
+	return pushThisValue;
+	// burp
 }
